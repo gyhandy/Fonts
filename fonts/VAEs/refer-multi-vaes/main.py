@@ -90,7 +90,8 @@ def parse_arguments(args_to_parse):
     model.add_argument('-a', '--reg-anneal', type=float,
                        default=default_config['reg_anneal'],
                        help="Number of annealing steps where gradually adding the regularisation. What is annealed is specific to each loss.")
-
+    model.add_argument('--which_epoch', default='latest',
+                       help="which_epoch model you want to load")
     # Loss Specific Options
     betaH = parser.add_argument_group('BetaH specific parameters')
     betaH.add_argument('--betaH-B', type=float,
@@ -196,7 +197,10 @@ def main(args):
         # PREPARES DATA
         train_loader = get_dataloaders(args.dataset,
                                        batch_size=args.batch_size,
-                                       logger=logger)
+                                       logger=logger, root='/lab/tmpig23b/u/andy/VAE_data/')
+        # train_loader = get_dataloaders(args.dataset,
+        #                                batch_size=args.batch_size,
+        #                                logger=logger)
         logger.info("Train {} with {} samples".format(args.dataset, len(train_loader.dataset)))
 
         # PREPARES MODEL

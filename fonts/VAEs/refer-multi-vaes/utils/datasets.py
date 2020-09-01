@@ -246,7 +246,21 @@ class CelebA(DisentangledDataset):
     def __init__(self, root=os.path.join(DIR, '../data/celeba'), **kwargs):
         super().__init__(root, [transforms.ToTensor()], **kwargs)
 
-        self.imgs = glob.glob(self.train_data + '/*')
+        '''only for fonts'''
+        # preprocess(self.train_data, size=type(self).img_size[1:])
+        img_path = os.path.join(root, 'fonts_img.txt')
+        if not os.path.exists(img_path):
+            self.imgs = glob.glob(self.train_data + '/*')
+            f = open(img_path, 'w')
+            f.write(str(self.imgs))
+            f.close
+        else:
+            f = open(img_path, 'r')
+            saved_file = f.read()
+            self.imgs = eval(saved_file)
+            f.close
+
+
 
     def download(self):
         """Download the dataset."""
