@@ -87,7 +87,7 @@ class Trainer():
             self.losses_logger.log(epoch, storer)
 
             if self.gif_visualizer is not None:
-                self.gif_visualizer()
+                self.gif_visualizer(epoch)
 
             if epoch % checkpoint_every == 0:
                 save_model(self.model, self.save_dir,

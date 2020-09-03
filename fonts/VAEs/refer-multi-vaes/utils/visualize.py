@@ -412,7 +412,7 @@ class GifTraversalsTraining:
         self.n_per_latent = n_per_latent
         self.n_latents = n_latents if n_latents is not None else model.latent_dim
 
-    def __call__(self):
+    def __call__(self, epoch):
         """Generate the next gif image. Should be called after each epoch."""
         cached_training = self.visualizer.model.training
         self.visualizer.model.eval()
@@ -421,6 +421,9 @@ class GifTraversalsTraining:
                                               n_per_latent=self.n_per_latent,
                                               n_latents=self.n_latents)
         self.images.append(img_grid)
+        '''save every epoch'''
+        save_name = self.save_filename.replace('.gif', '_'+str(epoch)+'.gif')
+        imageio.mimsave(save_name, self.images, fps=FPS_GIF)
         if cached_training:
             self.visualizer.model.train()
 
