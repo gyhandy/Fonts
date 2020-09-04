@@ -8,10 +8,14 @@ import matplotlib.animation as animation
 import time
 import random
 
+
 from models.mnist_model import Generator, Discriminator, DHead, QHead
 from dataloader import get_data
 from utils import *
-from config import params
+from config_fonts import params
+
+# global plotter
+plotter = VisdomLinePlotter(env_name='loss Plots')
 
 if params['dataset'] == 'MNIST':
     from models.mnist_model import Generator, Discriminator, DHead, QHead
@@ -62,11 +66,16 @@ elif(params['dataset'] == 'FashionMNIST'):
     params['num_dis_c'] = 1
     params['dis_c_dim'] = 10
     params['num_con_c'] = 2
+# elif(params['dataset'] == 'Fonts'):
+#     params['num_z'] = 128
+#     params['num_dis_c'] = 10
+#     params['dis_c_dim'] = 10
+#     params['num_con_c'] = 2
 elif(params['dataset'] == 'Fonts'):
     params['num_z'] = 128
-    params['num_dis_c'] = 10
+    params['num_dis_c'] = 5  # 5
     params['dis_c_dim'] = 10
-    params['num_con_c'] = 2
+    params['num_con_c'] = 2  # 10
 
 # Plot the training images.
 sample_batch = next(iter(dataloader))
@@ -169,8 +178,9 @@ for epoch in range(params['num_epochs']):
 
         # Net Loss for the discriminator
         D_loss = loss_real + loss_fake
-        # Update parameters
-        optimD.step()
+        # Update parameters(every 10 steps)
+        if i != 0 and i % 10 == 0:
+            optimD.step()
 
         # Updating Generator and QHead
         optimG.zero_grad()
@@ -194,7 +204,7 @@ for epoch in range(params['num_epochs']):
             con_loss = criterionQ_con(noise[:, params['num_z']+ params['num_dis_c']*params['dis_c_dim'] : ].view(-1, params['num_con_c']), q_mu, q_var)*0.1
 
         # Net loss for generator.
-        G_loss = gen_loss + dis_loss + con_loss
+        G_loss = (gen_loss + dis_loss + con_loss)
 
         # Calculate gradients.
         G_loss.backward()
@@ -202,15 +212,60 @@ for epoch in range(params['num_epochs']):
         optimG.step()
 
         # Check progress of training.
-        if i != 0 and i%100 == 0:
+        if i != 0 and i%1 == 0:
             print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f'
-                  % (epoch+1, params['num_epochs'], i, len(dataloader), 
+                  % (epoch+1, params['num_epochs'], i, len(dataloader),
                     D_loss.item(), G_loss.item()))
             print('generator loss:', gen_loss.item(), 'discrete latent code loss:', dis_loss.item(), 'continuous latent code loss', con_loss.item())
-
+            f = open('./log.txt', 'a')
+            f.writelines('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f'
+                  % (epoch+1, params['num_epochs'], i, len(dataloader),
+                    D_loss.item(), G_loss.item()))
+            f.writelines('generator loss:' + str(gen_loss.item()) + 'discrete latent code loss:' + str(dis_loss.item()) + 'continuous latent code loss:' + str(con_loss.item()))
+            f.close()
+            print('the x index:', i + epoch * len(dataloader))
+            plotter.plot('train2', 'Loss_D', 'Class Loss', int(i + epoch * len(dataloader)), D_loss.item())
+            plotter.plot('train2', 'Loss_G', 'Class Loss', int(i + epoch * len(dataloader)), G_loss.item())
+            plotter.plot('train2', 'generator loss', 'Class Loss', int(i + epoch * len(dataloader)), gen_loss.item())
+            plotter.plot('train2', 'discrete latent code loss', 'Class Loss', int(i + epoch * len(dataloader)), dis_loss.item())
+            plotter.plot('train2', 'continuous latent code loss', 'Class Loss', int(i + epoch * len(dataloader)), con_loss.item())
+            plotter.plot('Loss_D', 'train', 'Class Loss', i + epoch * len(dataloader), D_loss.item())
+            plotter.plot('Loss_G', 'train', 'Class Loss', i + epoch * len(dataloader), G_loss.item())
+            plotter.plot('generator loss', 'train', 'Class Loss', i + epoch * len(dataloader), gen_loss.item())
+            plotter.plot('discrete latent code loss', 'train', 'Class Loss', i + epoch * len(dataloader),
+                         dis_loss.item())
+            plotter.plot('continuous latent code loss', 'train', 'Class Loss', i + epoch * len(dataloader),
+                         con_loss.item())
         # Save the losses for plotting.
         G_losses.append(G_loss.item())
         D_losses.append(D_loss.item())
+
+        # Generate image after each epoch to check performance of the generator. Used for creating animated gif later.
+        with torch.no_grad():
+            gen_data = netG(fixed_noise).detach().cpu()
+        img_list.append(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True))
+
+        # Generate image to check performance of generator.
+        if i != 0 and i%1000 == 0:
+            with torch.no_grad():
+                gen_data = netG(fixed_noise).detach().cpu()
+            plt.figure(figsize=(10, 10))
+            plt.axis("off")
+            plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True), (1, 2, 0)))
+            plt.savefig("Epoch_%d_%i {}".format(params['dataset']) % ((epoch + 1), i))
+            plt.close('all')
+
+        # Save network weights.
+        if i != 0 and i%1000 == 0:
+            torch.save({
+                'netG': netG.state_dict(),
+                'discriminator': discriminator.state_dict(),
+                'netD': netD.state_dict(),
+                'netQ': netQ.state_dict(),
+                'optimD': optimD.state_dict(),
+                'optimG': optimG.state_dict(),
+                'params': params
+            }, 'checkpoint/model_epoch_%d_%d_{}'.format(params['dataset']) % ((epoch + 1), i))
 
         iters += 1
 

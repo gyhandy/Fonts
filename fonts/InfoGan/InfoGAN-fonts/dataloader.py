@@ -58,8 +58,7 @@ def get_data(dataset, batch_size):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5),
                                  (0.5, 0.5, 0.5))])
-        # dataset = dsets.ImageFolder(root='/home2/fonts_dataset_version0', transform=transform)
-        dataset = dsets.ImageFolder(root='~/andydata/fonts/fonts_dataset_version0', transform=transform)
+        dataset = dsets.ImageFolder(root='/home2/fonts_dataset_center', transform=transform)
     # Create dataloader.
     dataloader = torch.utils.data.DataLoader(dataset, 
                                             batch_size=batch_size, 
