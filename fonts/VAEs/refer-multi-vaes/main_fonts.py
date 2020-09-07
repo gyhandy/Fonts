@@ -215,10 +215,10 @@ def main(args):
         # PREPARES MODEL
         args.img_size = get_img_size(args.dataset)  # stores for metadata
         model = init_specific_model(args.model_type, args.img_size, args.latent_dim)
-        if args.which_epoch=='latest':
-            model_dict = torch.load(os.path.join('./results/btcvae_fonts_tcVae_5/', 'model.pt'))
-            model.load_state_dict(model_dict)
-            # pretrain_path = os.path.join(exp_dir, 'model.pt')
+        # if args.which_epoch=='latest':
+        #     model_dict = torch.load(os.path.join('./results/btcvae_fonts_tcVae_5/', 'model.pt'))
+        #     model.load_state_dict(model_dict)
+        #     # pretrain_path = os.path.join(exp_dir, 'model.pt')
         logger.info('Num parameters in model: {}'.format(get_n_param(model)))
 
         # TRAINS
