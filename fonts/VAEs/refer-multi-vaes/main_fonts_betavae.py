@@ -157,8 +157,8 @@ def parse_arguments(args_to_parse):
         if args.experiment not in ADDITIONAL_EXP:
             # update all common sections first
             model, dataset = args.experiment.split("_")
-            common_data = get_config_section([CONFIG_FILE], "Common_{}".format(dataset))
-            update_namespace_(args, common_data)
+            # common_data = get_config_section([CONFIG_FILE], "Common_{}".format(dataset))
+            # update_namespace_(args, common_data)
             common_model = get_config_section([CONFIG_FILE], "Common_{}".format(model))
             update_namespace_(args, common_model)
 
@@ -215,10 +215,10 @@ def main(args):
         # PREPARES MODEL
         args.img_size = get_img_size(args.dataset)  # stores for metadata
         model = init_specific_model(args.model_type, args.img_size, args.latent_dim)
-        if args.which_epoch=='latest':
-            model_dict = torch.load(os.path.join('./results/btcvae_fonts_betaVae_5epoch/', 'model.pt'))
-            model.load_state_dict(model_dict)
-            # pretrain_path = os.path.join(exp_dir, 'model.pt')
+        # if args.which_epoch=='latest':
+        #     model_dict = torch.load(os.path.join('./results/btcvae_fonts_betaVae_5epoch/', 'model.pt'))
+        #     model.load_state_dict(model_dict)
+        #     # pretrain_path = os.path.join(exp_dir, 'model.pt')
         logger.info('Num parameters in model: {}'.format(get_n_param(model)))
 
         # TRAINS
