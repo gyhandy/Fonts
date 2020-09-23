@@ -1,5 +1,7 @@
 import os
 import pygame
+import os
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 # Attributes' values
 
@@ -134,5 +136,3 @@ for word in Words: # 1st round for words
                                     except:
                                         # print(letter, size, font_color, back_color, font)
                                         print(word, size, font_color, back_color, font)
-                                else:
-                                    break

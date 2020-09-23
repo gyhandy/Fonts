@@ -1,4 +1,3 @@
-"""utils_gsl.py"""
 
 import argparse
 import subprocess
