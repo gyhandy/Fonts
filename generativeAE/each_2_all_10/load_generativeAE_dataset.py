@@ -386,7 +386,7 @@ class ilab_Nswap_imgfolder(Dataset):
 
 
         labels = {'letter': [], 'size': [], 'bg': [], 'fg': [], 'style': []}
-        for name in name_list:
+        for idx, name in enumerate(name_list):
             labels['letter'].append(self.letter_label[name.split('_')[0]])
             labels['size'].append(self.size_label[name.split('_')[1]])
             labels['fg'].append(self.fg_label[name.split('_')[2]])
@@ -580,8 +580,9 @@ def return_data(args):
         # dataset = ilab_sup_imgfolder(root, transform)
         # dataset = ilab_threeswap_imgfolder(root, transform)
         dataset = ilab_Nswap_imgfolder(root, transform)
-    elif name.lower() == 'generate_ae':
-        root = '/lab/tmpig23b/u/yao-data/generationAE/dataset'
+    elif name.lower() == 'generative_ae_fonts_rgb':
+        # root = '/lab/tmpig23b/u/yao-data/generativeAE/dataset/easy_fonts'
+        root = '/lab/tmpig23b/u/gan/fonts_dataset_version2rgb'
         if not os.path.exists(root):
             print('No fonts dataset')
         transform = []

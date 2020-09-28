@@ -88,8 +88,8 @@ if __name__ == "__main__":
     '''
     save model
     '''
-    parser.add_argument('--model_save_dir', default='/lab/tmpig23b/u/yao-data/Nswap_designated_attrs',
-                        type=str, help='output directory')
+    parser.add_argument('--log_dir', default='/lab/tmpig23b/u/yao-data/Nswap_designated_attrs', type=str, help='output log.txt')
+    parser.add_argument('--model_save_dir', default='ckpt_model', type=str, help='relate to the log_dir')
     parser.add_argument('--resume_iters', type=int, default=0, help='resume training from this step')
 
     parser.add_argument('--gather_step', default=2e3, type=int, help='numer of iterations after which data is gathered for visdom')

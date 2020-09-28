@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="4b8dce6c-2dcd-4231-a8ab-530b263cc9ce" name="yao_code" url="https://www.google.com/">
+        <fileTransfer rootFolder="/lab/tmpig23/u/yao-code" accessType="SFTP" host="localhost" port="6001" sshConfigId="50846529-ded6-4e98-be34-3cb58b77e0df" sshConfig="andy@localhost:6001:22 password">
+          <advancedOptions>
+            <advancedOptions controlEncoding="UTF-8" dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="f2cc0866-938c-4a25-8bb8-00529c48e38c" name="code" url="https://www.google.com/">
+        <fileTransfer rootFolder="/lab/tmpig23/u" accessType="SFTP" host="localhost" port="6001" sshConfigId="50846529-ded6-4e98-be34-3cb58b77e0df" sshConfig="andy@localhost:6001:22 password">
+          <advancedOptions>
+            <advancedOptions controlEncoding="UTF-8" dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="8fe49fb6-c3ad-4c45-96e7-2365d8fa4293" name="data" url="https://www.google.com/">
+        <fileTransfer rootFolder="/lab/tmpig23b/u" accessType="SFTP" host="localhost" port="6001" sshConfigId="50846529-ded6-4e98-be34-3cb58b77e0df" sshConfig="andy@localhost:6001:22 password">
+          <advancedOptions>
+            <advancedOptions controlEncoding="UTF-8" dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

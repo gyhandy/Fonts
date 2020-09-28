@@ -11,8 +11,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision.utils import make_grid, save_image
 from utils import cuda, grid2gif
-from model_generationAE import Generator_fc
-from load_generationAE_dataset import return_data
+from model_generativeAE import Generator_fc
+from load_generativeAE_dataset import return_data
 import torch.nn as nn
 import functools
 from torchvision import transforms
@@ -149,6 +149,9 @@ class Solver(object):
             self.nc = 3
             self.decoder_dist = 'gaussian'
         elif args.dataset.lower() == 'generate_ae':
+            self.nc = 3
+            self.decoder_dist = 'gaussian'
+        elif args.dataset.lower() == 'generative_ae_fonts_rgb':
             self.nc = 3
             self.decoder_dist = 'gaussian'
         else:
@@ -419,14 +422,15 @@ class Solver(object):
                 self.auto_optim.step()
 
                 C_label = ''
-                for attr in ['letter', 'size', 'fg', 'bg', 'style']:
+                # for attr in ['letter', 'size', 'fg', 'bg', 'style']:
+                for attr in ['bg']:
                     C_label += str(labels[attr][2])
 
                 #　save the log
                 f = open(self.log_dir + '/log.txt', 'a')
-                f.writelines(['\n', '[{}] recon_loss:{:.3f}  combine_sup_loss:{:.3f}  combine_unsup_loss:{:.3f}'
-                            '\n', C_label + ':' + str(C_z.to(torch.device('cpu')).tolist()) .format(
-                        self.global_iter, recon_loss.data, combine_sup_loss.data, combine_unsup_loss.data)])
+                f.writelines(['\n', '[{}] recon_loss:{:.3f}  combine_sup_loss:{:.3f}  combine_unsup_loss:{:.3f}'.format(
+                        self.global_iter, recon_loss.data, combine_sup_loss.data, combine_unsup_loss.data),
+                            '\n', 'back color ', C_label + ':' + str(A_z_4.to(torch.device('cpu')).tolist())])
                 f.close()
 
 

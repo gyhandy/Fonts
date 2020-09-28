@@ -173,10 +173,10 @@ class Solver(object):
 
 
         # log
-        self.model_save_dir = os.path.join(args.model_save_dir, args.viz_name)
+        self.log_dir = os.path.join(args.log_dir, args.viz_name)
+        self.model_save_dir = os.path.join(self.log_dir, args.model_save_dir)
         if not os.path.exists(self.model_save_dir):
             os.makedirs(self.model_save_dir, exist_ok=True)
-        self.log_dir = self.model_save_dir
 
 
         self.viz_name = args.viz_name
@@ -205,7 +205,7 @@ class Solver(object):
         #     self.load_checkpoint(self.ckpt_name)
 
         self.save_output = args.save_output
-        self.output_dir = os.path.join(self.model_save_dir, args.output_dir)
+        self.output_dir = os.path.join(self.log_dir, args.output_dir)
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
 
@@ -573,9 +573,11 @@ class Solver(object):
 
         pbar.write("[Training Finished]")
         pbar.close()
+
+
     def save_sample_img(self, tensor, name_list):
         unloader = transforms.ToPILImage()
-        dir = os.path.join(self.model_save_dir, 'sample_img')
+        dir = os.path.join(self.log_dir, 'sample_img', self.global_iter)
         if not os.path.exists(dir):
             os.makedirs(dir)
         image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
