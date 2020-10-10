@@ -24,59 +24,9 @@ from utils import cuda, grid2gif
 import torch.nn.functional as F
 from tqdm import tqdm
 from PIL import Image
+# import sklearn.external.joblib as extjoblib
+import joblib
 
-
-def parse_args():
-  """Parses arguments."""
-  parser = argparse.ArgumentParser(
-      description='Train semantic boundary with given latent codes and attribute scores.')
-  parser.add_argument('--attribute', default=0, type=int,
-                      help='which attribute we want to find boundary(blue:0, green:1, red:2)')
-  parser.add_argument('-o', '--output_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/find_boundary',
-                      type=str, help='Directory to save the output results')
-  parser.add_argument('-c', '--load_images_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/dataset',
-                      type=str, help='Path to the input images (required)')
-  parser.add_argument('-b', '--batch-size', default=30, type=int, help='mini-batch size')
-  parser.add_argument('-j', '--num_workers', default=0, type=int, help='number of data loading workers (default: 4)')
-  parser.add_argument('-m', '--pin-memory', dest='pin_memory', action='store_true', help='use pin memory')
-
-  parser.add_argument('--scores_path', default='/lab/tmpig23b/u/yao-data/generativeAE/find_boundary/scores.npy',
-                      type=str, help='Path to the input attribute scores.')
-  parser.add_argument('--load_scores', default=True, type=str2bool, help='whether load score.npy')
-  parser.add_argument('--classifier_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/model/resnet18/resnet18_1.pth',
-                      type=str, help='Path to the back color classifier model.')
-  parser.add_argument('--latent_path', default='/lab/tmpig23b/u/yao-data/generativeAE/find_boundary/latent_codes.npy',
-                      type=str, help='Path to the input latent codes.')
-  parser.add_argument('--load_latent', default=True, type=str2bool, help='whether load latent_codes.npy')
-
-  parser.add_argument('--autoencoder_path', default='/lab/tmpig23b/u/zhix/interpolation/checkpoints/fonts_Nswap/970000-Auto.ckpt',
-                      type=str, help='Path to the autoencoder model.')
-  parser.add_argument('-n', '--chosen_num_or_ratio', type=float, default=0.02,
-                      help='How many samples to choose for training.  (default: 0.02)')
-  parser.add_argument('-r', '--split_ratio', type=float, default=0.7,
-                      help='Ratio with which to split training and validation sets. (default: 0.7)')
-  parser.add_argument('-V', '--invalid_value', type=float, default=None,
-                      help='Sample whose attribute score is equal to this '
-                           'field will be ignored. (default: None)')
-
-  parser.add_argument('--cuda', default=True, type=str2bool, help='enable cuda')
-  # model params
-  parser.add_argument('--crop_size', type=int, default=208, help='crop size for the ilab dataset')
-  parser.add_argument('--image_size', type=int, default=128, help='crop size for the ilab dataset')
-  parser.add_argument('--g_conv_dim', type=int, default=64, help='number of conv filters in the first layer of G')
-  parser.add_argument('--g_repeat_num', type=int, default=1,
-                      help='number of residual blocks in G for encoder and decoder')
-  '''
-  the weight for pose and background
-  '''
-  parser.add_argument('--z_dim', default=100, type=int, help='dimension of the representation z')
-  parser.add_argument('--z_content', default=20, type=int, help='dimension of the z_content in z')
-  parser.add_argument('--z_size', default=20, type=int, help='dimension of the z_size in z')
-  parser.add_argument('--z_font_color', default=20, type=int, help='dimension of the z_font_color in z')
-  parser.add_argument('--z_back_color', default=20, type=int, help='dimension of the z_back_color in z')
-  parser.add_argument('--z_style', default=20, type=int, help='dimension of the z_style in z')
-
-  return parser.parse_args()
 
 
 class ResidualBlock(nn.Module):
@@ -307,6 +257,11 @@ def resnet18(**kwargs):
 class Train_Boundary():
     def __init__(self, args, logger=None):
         self.logger = logger
+        self.output_dir = args.output_dir
+        self.project_dir = os.path.join(args.output_dir, args.project_name)
+        if not os.path.exists(self.project_dir):
+            os.makedirs(self.project_dir)
+
         self.load_models(args)
         self.prepare_data(args)
 
@@ -348,16 +303,18 @@ class Train_Boundary():
             self.logger.info('Begin compute latent codes.')
             latent_codes = self.compute_latent(args)
         else:
-            latent_codes = np.load(args.latent_path)
+            latent_path = os.path.join(self.output_dir, 'latent_codes.npy')
+            latent_codes = np.load(latent_path)
 
         if not args.load_scores:
             self.logger.info('Begin compute scores.')
             scores = self.compute_scores(args)
         else:
-            scores = np.load(args.scores_path)
+            scores_path = os.path.join(self.project_dir, 'scores.npy')
+            scores = np.load(scores_path)
 
         self.logger.info('Begin Training.')
-        self.tarin(args,latent_codes, scores)
+        self.tarin(latent_codes, scores)
 
 
     def encode_image(self, img):
@@ -379,7 +336,7 @@ class Train_Boundary():
             out = self.bg_classfier(img)
             tmp_scores = F.softmax(out, dim=1).data[:, args.attribute]
             scores = np.append(scores, torch.reshape(tmp_scores, (-1, 1)).cpu().numpy(), axis=0)
-            np.save(os.path.join(args.output_dir, 'scores.npy'), scores)
+            np.save(os.path.join(self.project_dir, 'scores.npy'), scores)
 
         return scores
 
@@ -390,12 +347,12 @@ class Train_Boundary():
         for (img, label) in tqdm(self.encode_loader):
             img, recon, z_1, z_2, z_3, z_4, z_5 = self.encode_image(img)
             latent_codes = np.append(latent_codes, z_4.cpu().detach().numpy(), axis=0)
-            np.save(os.path.join(args.output_dir, 'latent_codes.npy'), latent_codes)
+            np.save(os.path.join(self.output_dir, 'latent_codes.npy'), latent_codes)
 
         return latent_codes
 
 
-    def tarin(self, args, latent_codes,
+    def tarin(self, latent_codes,
                        scores,
                        chosen_num_or_ratio=0.02,
                        split_ratio=0.7,
@@ -471,6 +428,8 @@ class Train_Boundary():
         np.random.shuffle(positive_idx)
         positive_train = latent_codes[:chosen_num][positive_idx[:train_num]]
         positive_val = latent_codes[:chosen_num][positive_idx[train_num:]]
+        attribute_mean = (np.mean(positive_val, axis=0) + np.mean(positive_train, axis=0)) / 2
+        np.save(os.path.join(self.project_dir, 'attribute_mean.npy'), attribute_mean)
         # Negative samples.
         negative_idx = np.arange(chosen_num)
         np.random.shuffle(negative_idx)
@@ -501,6 +460,7 @@ class Train_Boundary():
         self.logger.info(f'Training boundary.')
         clf = svm.SVC(kernel='linear')
         classifier = clf.fit(train_data, train_label)
+        joblib.dump(classifier, os.path.join(self.project_dir, "svm_model.m"))
         self.logger.info(f'Finish training.')
 
         if val_num:
@@ -519,15 +479,63 @@ class Train_Boundary():
 
         a = classifier.coef_.reshape(1, latent_space_dim).astype(np.float32)
         boundary = a / np.linalg.norm(a)
-        np.save(os.path.join(args.output_dir, 'boundary.npy'), boundary)
+        np.save(os.path.join(self.project_dir, 'boundary.npy'), boundary)
 
 
-def main():
+def main(args):
   """Main function."""
-  args = parse_args()
-  logger = setup_logger(args.output_dir, logger_name='generate_data')
+  project_dir = os.path.join(args.output_dir, args.project_name)
+  logger = setup_logger(project_dir, logger_name='generate_data')
   Train_Boundary(args, logger)
 
 
 if __name__ == '__main__':
-  main()
+  parser = argparse.ArgumentParser( description='Train semantic boundary with given latent codes and attribute scores.')
+
+  parser.add_argument('--attribute', default=2, type=int,
+                      help='which attribute we want to find boundary(blue:0, green:1, red:2)')
+  parser.add_argument('--project_name', default='center_classRGB_red', type=str, help='name to distinguish different boundary')
+
+  parser.add_argument('--load_scores', default=True, type=str2bool, help='whether load score.npy')
+  parser.add_argument('--load_latent', default=True, type=str2bool, help='whether load latent_codes.npy')
+
+  parser.add_argument('-o', '--output_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/find_boundary/back_color',
+                      type=str, help='Directory to save the output results')
+  parser.add_argument('-c', '--load_images_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/dataset',
+                      type=str, help='Path to the input images (required)')
+  parser.add_argument('-b', '--batch-size', default=30, type=int, help='mini-batch size')
+  parser.add_argument('-j', '--num_workers', default=0, type=int, help='number of data loading workers (default: 4)')
+  parser.add_argument('-m', '--pin-memory', dest='pin_memory', action='store_true', help='use pin memory')
+
+  parser.add_argument('--classifier_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/model/resnet18/back_color/RGB/resnet18_1.pth',
+                      type=str, help='Path to the back color classifier model.')
+
+  parser.add_argument('--autoencoder_path', default='/lab/tmpig23b/u/zhix/interpolation/checkpoints/fonts_Nswap/970000-Auto.ckpt',
+                      type=str, help='Path to the autoencoder model.')
+  parser.add_argument('-n', '--chosen_num_or_ratio', type=float, default=0.02,
+                      help='How many samples to choose for training.  (default: 0.02)')
+  parser.add_argument('-r', '--split_ratio', type=float, default=0.7,
+                      help='Ratio with which to split training and validation sets. (default: 0.7)')
+  parser.add_argument('-V', '--invalid_value', type=float, default=None,
+                      help='Sample whose attribute score is equal to this '
+                           'field will be ignored. (default: None)')
+
+  parser.add_argument('--cuda', default=True, type=str2bool, help='enable cuda')
+  # model params
+  parser.add_argument('--crop_size', type=int, default=208, help='crop size for the ilab dataset')
+  parser.add_argument('--image_size', type=int, default=128, help='crop size for the ilab dataset')
+  parser.add_argument('--g_conv_dim', type=int, default=64, help='number of conv filters in the first layer of G')
+  parser.add_argument('--g_repeat_num', type=int, default=1,
+                      help='number of residual blocks in G for encoder and decoder')
+  '''
+  the weight for pose and background
+  '''
+  parser.add_argument('--z_dim', default=100, type=int, help='dimension of the representation z')
+  parser.add_argument('--z_content', default=20, type=int, help='dimension of the z_content in z')
+  parser.add_argument('--z_size', default=20, type=int, help='dimension of the z_size in z')
+  parser.add_argument('--z_font_color', default=20, type=int, help='dimension of the z_font_color in z')
+  parser.add_argument('--z_back_color', default=20, type=int, help='dimension of the z_back_color in z')
+  parser.add_argument('--z_style', default=20, type=int, help='dimension of the z_style in z')
+
+  args = parser.parse_args()
+  main(args)

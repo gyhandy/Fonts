@@ -10,8 +10,8 @@ import resnet
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('--data',default='/lab/tmpig23b/u/yao-data/dataset/classifiction_backcolor', help='path to dataset')
-parser.add_argument('-a', '--arch', metavar='ARCH', default='/lab/tmpig23b/u/yao-data/generativeAE/model/resnet18',
+parser.add_argument('--data',default='/lab/tmpig23b/u/yao-data/dataset/classifiction_backcolor_center', help='path to dataset')
+parser.add_argument('-a', '--arch', metavar='ARCH', default='/lab/tmpig23b/u/yao-data/generativeAE/model/resnet18/back_color/center/resnet18',
                     help='model architecture')
 parser.add_argument('--epochs', default=90, type=int, 
                     help='numer of total epochs to run')
@@ -86,6 +86,7 @@ def main():
         return
     '''
 
+
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch, args.lr)
 
@@ -145,6 +146,15 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq, val_load
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'.format(
                 epoch, i, len(train_loader), loss=losses, top1=top1))
+
+        if i % 200 == 0:
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'arch': args.arch,
+                'state_dict': model.state_dict(),
+                'best_prec1': best_prec1,
+                'optimizer': optimizer.state_dict()
+            }, args.arch + '_' + str(epoch) + '_' + str(i) + '.pth')
 
 def validate(train_loader, val_loader, model, criterion, epoch):
     for (img,label) in val_loader:

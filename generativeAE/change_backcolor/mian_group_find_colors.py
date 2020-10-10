@@ -5,17 +5,17 @@ import numpy as np
 from utils import str2bool
 import warnings
 import os
-from tqdm import tqdm
 import visdom
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision.utils import make_grid, save_image
+from torchvision.utils import make_grid
 from utils import cuda, grid2gif
 from model_share import Generator_fc
-from dataset_interpolation_fonts import return_data
 from torchvision import transforms
+from PIL import Image
 import random
+import joblib
 
 
 
@@ -26,14 +26,12 @@ torch.backends.cudnn.benchmark = True
 
 class Solver(object):
     def __init__(self, args):
+        self.start_img_path = args.start_img_path
+        self.num_latents = args.num_latents
         self.use_cuda = args.cuda and torch.cuda.is_available()
-        self.max_iter = args.max_iter
-        self.data_loader = return_data(args)
-        self.batch_size = args.batch_size
-        self.viz_name = args.viz_name
         self.viz_port = args.viz_port
         self.viz = visdom.Visdom(port=self.viz_port)
-        self.resume_iters = args.resume_iters
+        self.target_latents_path = os.path.join(args.target_latents_path, 'k_value_' + str(args.num_latents))
         # model params
         self.image_size = args.image_size
         self.g_conv_dim = args.g_conv_dim
@@ -59,12 +57,19 @@ class Solver(object):
         Auto_path = os.path.join(args.model_save_dir, '{}-Auto.ckpt'.format(args.resume_model_iters))
         self.Autoencoder.load_state_dict(torch.load(Auto_path, map_location=lambda storage, loc: storage))
 
+        self.transforms = transforms.Compose([
+                            transforms.Resize(args.image_size),
+                            transforms.ToTensor(),
+                            transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                                 std=[0.5, 0.5, 0.5])
+                        ])
+
         self.output_dir = args.output_dir
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
 
 
-    def encode_image(self, img):
+    def encode_image(self, img_path):
+        img = Image.open(img_path).convert('RGB')
+        img = self.transforms(img).unsqueeze(0)
         img = Variable(cuda(img, self.use_cuda))
         recon, z = self.Autoencoder(img)
         z_1 = z[:, 0:self.z_size_start_dim]  # 0-200
@@ -76,45 +81,22 @@ class Solver(object):
 
 
     def generate_colors(self):
-        out = False
-        # Start training from scratch or resume training.
-        self.global_iter = 0
-        if self.resume_iters:
-            self.global_iter = self.resume_iters
+        start_img, start_recon, start_z_1, start_z_2, start_z_3, start_z_4, start_z_5 = self.encode_image(self.start_img_path)
 
-        pbar = tqdm(total=self.max_iter)
-        pbar.update(self.global_iter)
+        images = {}
+        images['start_img'] = start_img.data
+        images['start_recon'] = start_recon.data
 
-        pics = ['A', 'B', 'D', 'F']
-        while not out:
-            for sup_package in self.data_loader:
-                images = {}
+        for i in range(self.num_latents):
+            target_latent = os.path.join(self.target_latents_path, 'latent_'+str(i)+'_'+str(self.num_latents)+'.npy')
+            z_new = torch.reshape(torch.from_numpy(np.load(target_latent)).cuda(), (1, self.z_back_color_dim))
+            boundary_img_z = torch.cat((start_z_1, start_z_2, start_z_3, z_new.float(), start_z_5), dim=1)
+            mid_boundary_img = self.Autoencoder.fc_decoder(boundary_img_z)
+            mid_boundary_img = mid_boundary_img.view(mid_boundary_img.shape[0], 256, 8, 8)
+            boundary_img = self.Autoencoder.decoder(mid_boundary_img)
+            images[str(i)] = F.sigmoid(boundary_img).data
 
-                labels = sup_package['labels']
-                C_img = sup_package['C']
-                C_img, C_recon, C_z_1, C_z_2, C_z_3, C_z_4, C_z_5 = self.encode_image(C_img)
-                images['C' + '_' + labels['bg']['C'][0]] = C_img.data
-
-                for pic in pics:
-                    ori_img = sup_package[pic]
-                    ''' refer 1: content, 2: size, 3: font-color, 4 back_color, 5 style'''
-                    ori_img, recon, z_1, z_2, z_3, z_4, z_5 = self.encode_image(ori_img)
-                    images[pic + '_' + labels['bg'][pic][0]] = ori_img.data
-
-                    for _ in range(10):
-                        z_new = torch.zeros_like(z_4)
-                        for m in range(20):
-                            for n in range(self.batch_size):
-                                z_new[n][m] = random.uniform(z_4[n][m], C_z_4[n][m])
-                                interpolation_img_z = torch.cat((z_1, z_2, z_3, z_new, z_5), dim=1)
-                                mid_interpolation_img = self.Autoencoder.fc_decoder(interpolation_img_z)
-                                mid_interpolation_img = mid_interpolation_img.view(mid_interpolation_img.shape[0], 256, 8, 8)
-                                interpolation_img = self.Autoencoder.decoder(mid_interpolation_img)
-                                images[labels['bg'][pic][0] + '_' + labels['bg']['C'][0] + str(_)] = F.sigmoid(interpolation_img).data
-
-                self.viz_images(images)
-                self.global_iter += 1
-                pbar.update(1)
+        self.viz_images(images)
 
 
     def viz_images(self, images):
@@ -126,19 +108,22 @@ class Solver(object):
             name_list.append(name)
 
         images = torch.stack(image_list, dim=0).cpu()
-        self.viz.images(images, env=self.viz_name, opts=dict(title=str(self.global_iter)), nrow=10)
+        self.viz.images(images, env='groupby_scores', opts=dict(title=str(self.num_latents)), nrow=10)
         self.save_sample_img(images, name_list)
 
 
     def save_sample_img(self, tensor, name_list):
         unloader = transforms.ToPILImage()
-        dir = self.output_dir
         image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
+
+        path = os.path.join(self.output_dir, 'k_value_' + str(self.num_latents))
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         for idx, img in enumerate(image):
             image_ori = img.squeeze(0)  # remove the fake batch dimension
             image_ori = unloader(image_ori)
-            image_ori.save(os.path.join(dir, '{}-{}.png'.format(self.global_iter, name_list[idx])))
+            image_ori.save(os.path.join(path, '{}.png'.format(name_list[idx])))
 
 
 
@@ -156,18 +141,22 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='toy Beta-VAE')
 
-    parser.add_argument('--max_iter', default=5e4, type=float, help='maximum training iteration')
-    parser.add_argument('--output_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/dataset/interpolation_center',
+    parser.add_argument('--start_img_path',
+                        default='/lab/tmpig23b/u/yao-data/dataset/change_backcolor/green/C_large_chocolate_green_dejavusansmono.png',
+                        type=str, help='the image which we want to start our changing')
+    parser.add_argument('--target_latents_path',
+                        default='/lab/tmpig23b/u/yao-data/generativeAE/find_colors/groupby_scores/center_class_center',
+                        type=str, help='the path to load the target latent codes')
+    parser.add_argument('--num_latents', default=15, type=int, help='the number of latents we group by')
+    # parser.add_argument('--end_img_path',
+    #                     default='/lab/tmpig23b/u/yao-data/dataset/change_backcolor/blue/A_large_purple_blue_liberationmono.png',
+    #                     type=str, help='the image which we want to end our changing')
+    parser.add_argument('--output_dir', default='/lab/tmpig23b/u/yao-data/generativeAE/change_backcolor/group_find_colors',
                         type=str, help='output directory')
-    parser.add_argument('--train', default=True, type=str2bool, help='train or traverse')
-    parser.add_argument('--batch_size', default=1, type=int, help='batch size')
-
     parser.add_argument('--seed', default=1, type=int, help='random seed')
     parser.add_argument('--cuda', default=True, type=str2bool, help='enable cuda')
-    parser.add_argument('--viz_name', default='interpolation_center', type=str, help='visdom env name')
     parser.add_argument('--viz_port', default=8097, type=str, help='visdom port number')
     # model params
-    parser.add_argument('--crop_size', type=int, default=208, help='crop size for the ilab dataset')
     parser.add_argument('--image_size', type=int, default=128, help='crop size for the ilab dataset')
     parser.add_argument('--g_conv_dim', type=int, default=64, help='number of conv filters in the first layer of G')
     parser.add_argument('--g_repeat_num', type=int, default=1,
@@ -181,22 +170,12 @@ if __name__ == "__main__":
     parser.add_argument('--z_font_color', default=20, type=int, help='dimension of the z_font_color in z')
     parser.add_argument('--z_back_color', default=20, type=int, help='dimension of the z_back_color in z')
     parser.add_argument('--z_style', default=20, type=int, help='dimension of the z_style in z')
-
-    parser.add_argument('--dset_dir', default='data', type=str, help='dataset directory')
-    parser.add_argument('--dataset', default='fonts_unsup_nswap', type=str, help='dataset name')
-    parser.add_argument('--num_workers', default=1, type=int, help='dataloader num_workers')
-
     '''
     save model
     '''
-    parser.add_argument('--model_save_dir', default='/lab/tmpig23b/u/zhix/change_backcolor/checkpoints/fonts_Nswap',
+    parser.add_argument('--model_save_dir', default='/lab/tmpig23b/u/zhix/interpolation/checkpoints/fonts_Nswap',
                         type=str, help='the directory to load model')
-    parser.add_argument('--resume_model_iters', type=int, default=930000, help='resume model from this step')
-    parser.add_argument('--resume_iters', type=int, default=0, help='resume training from this step')
-    parser.add_argument('--use_server', default='True', type=str2bool,
-                        help='use server to train the model need change the data location')
-    parser.add_argument('--which_server', default='15', type=str,
-                        help='use which server to train the model 15 or 21')
+    parser.add_argument('--resume_model_iters', type=int, default=970000, help='resume model from this step')
 
 
     args = parser.parse_args()

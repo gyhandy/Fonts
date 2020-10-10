@@ -82,14 +82,14 @@ if __name__ == "__main__":
     save model
     '''
     # parser.add_argument('--model_save_dir', default='checkpoints', type=str, help='output directory')
-    parser.add_argument('--model_save_dir', default='/lab/tmpig23b/u/zhix/interpolation/checkpoints', type=str, help='output directory')
+    parser.add_argument('--model_save_dir', default='/lab/tmpig23b/u/zhix/change_backcolor/checkpoints', type=str, help='output directory')
     parser.add_argument('--resume_iters', type=int, default=520000, help='resume training from this step')
 
     parser.add_argument('--gather_step', default=1000, type=int, help='numer of iterations after which data is gathered for visdom')
     parser.add_argument('--display_step', default=1000, type=int, help='number of iterations after which loss data is printed and visdom is updated')
     parser.add_argument('--save_step', default=10000, type=int, help='number of iterations after which a checkpoint is saved')
 
-    parser.add_argument('--ckpt_dir', default='/lab/tmpig23b/u/zhix/interpolation/checkpoints', type=str, help='checkpoint directory')
+    parser.add_argument('--ckpt_dir', default='/lab/tmpig23b/u/zhix/change_backcolor/checkpoints', type=str, help='checkpoint directory')
     parser.add_argument('--ckpt_name', default='last', type=str, help='load previous checkpoint. insert checkpoint filename')
     parser.add_argument('--use_server', default='True', type=str2bool,
                         help='use server to train the model need change the data location')

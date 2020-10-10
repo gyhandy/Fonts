@@ -566,7 +566,7 @@ class Solver(object):
             image_A1B2D3E4F5_2C.save(os.path.join(dir, '{}-A1B2D3E4F5_2C.png'.format(self.global_iter)))
             image_A2B3D4E5F1_2N.save(os.path.join(dir, '{}-A2B3D4E5F1_2N.png'.format(self.global_iter)))
 
-        elif mode == 'interpolation':
+        elif mode == 'change_backcolor':
             interpolation1 = image[0].squeeze(0)  # remove the fake batch dimension
             interpolation2 = image[1].squeeze(0)
             interpolation3 = image[2].squeeze(0)
@@ -651,30 +651,30 @@ class Solver(object):
         self.save_sample_img(images, 'combine_unsup')
     def viz_interpolation(self):
         # self.net_mode(train=False)
-        x_inter1 = self.gather.data['interpolation'][0][:100]
+        x_inter1 = self.gather.data['change_backcolor'][0][:100]
         x_inter1 = make_grid(x_inter1, normalize=True)
-        x_inter2 = self.gather.data['interpolation'][1][:100]
+        x_inter2 = self.gather.data['change_backcolor'][1][:100]
         x_inter2=  make_grid(x_inter2, normalize=True)
-        x_inter3 = self.gather.data['interpolation'][2][:100]
+        x_inter3 = self.gather.data['change_backcolor'][2][:100]
         x_inter3 = make_grid(x_inter3, normalize=True)
-        x_inter4 = self.gather.data['interpolation'][3][:100]
+        x_inter4 = self.gather.data['change_backcolor'][3][:100]
         x_inter4 = make_grid(x_inter4, normalize=True)
-        x_inter5 = self.gather.data['interpolation'][4][:100]
+        x_inter5 = self.gather.data['change_backcolor'][4][:100]
         x_inter5 = make_grid(x_inter5, normalize=True)
-        x_inter6 = self.gather.data['interpolation'][5][:100]
+        x_inter6 = self.gather.data['change_backcolor'][5][:100]
         x_inter6 = make_grid(x_inter6, normalize=True)
-        x_inter7 = self.gather.data['interpolation'][6][:100]
+        x_inter7 = self.gather.data['change_backcolor'][6][:100]
         x_inter7 = make_grid(x_inter7, normalize=True)
-        x_inter8 = self.gather.data['interpolation'][7][:100]
+        x_inter8 = self.gather.data['change_backcolor'][7][:100]
         x_inter8 = make_grid(x_inter8, normalize=True)
-        x_inter9 = self.gather.data['interpolation'][8][:100]
+        x_inter9 = self.gather.data['change_backcolor'][8][:100]
         x_inter9 = make_grid(x_inter9, normalize=True)
-        x_inter10 = self.gather.data['interpolation'][9][:100]
+        x_inter10 = self.gather.data['change_backcolor'][9][:100]
         x_inter10 = make_grid(x_inter10, normalize=True)
         images = torch.stack([x_inter1, x_inter2, x_inter3, x_inter4, x_inter5, x_inter6, x_inter7, x_inter8, x_inter9, x_inter10], dim=0).cpu()
         self.viz.images(images, env=self.viz_name+'_interpolation',
                         opts=dict(title=str(self.global_iter)), nrow=10)
-        self.save_sample_img(images, 'interpolation')
+        self.save_sample_img(images, 'change_backcolor')
 
     def viz_combine(self, x):
         # self.net_mode(train=False)

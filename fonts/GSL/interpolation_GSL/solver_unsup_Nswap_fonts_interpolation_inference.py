@@ -326,7 +326,7 @@ class Solver(object):
                     inter_images.append(self.Autoencoder.decoder(inter_images_mid[j]).cpu())
                 for k in range(10):
                     inter_images[k] = unloader(F.sigmoid(inter_images[k]).data.squeeze(0))
-                    inter_images[k].save(os.path.join(dir,'{}-interpolation-{}.png'.format(self.global_iter, k)))
+                    inter_images[k].save(os.path.join(dir,'{}-change_backcolor-{}.png'.format(self.global_iter, k)))
 
                 ## 2. combine with strong supervise
                 ''' refer 1: content, 2: size, 3: font-color, 4 back_color, 5 style'''
